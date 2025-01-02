@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finger Counter</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+        video, canvas {
+            border: 2px solid #000;
+            margin-top: 20px;
+            max-width: 80%;
+        }
+        h1 {
+            font-size: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="message">Counting Fingers...</h1>
+    <video id="video" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        const context = canvas.getContext("2d");
+
+        // Access the user's webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                video.srcObject = stream;
+            })
+            .catch((error) => {
+                console.error("Error accessing webcam:", error);
+            });
+
+        // Send frames to the backend for processing
+        function sendFrame() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const frameData = canvas.toDataURL("image/jpeg"); // Convert frame to base64
+
+            fetch("/process_frame", {
+                method: "POST",
+                body: JSON.stringify({ frame: frameData }),
+                headers: { "Content-Type": "application/json" },
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    const fingerCount = data.finger_count;
+                    if (fingerCount === 2) {
+                        document.getElementById("message").textContent = "🎉 HAPPY NEW YEAR!";
+                    } else {
+                        document.getElementById("message").textContent = `Fingers Detected: ${fingerCount}`;
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error:", error);
+                });
+        }
+
+        // Send frames every 500ms
+        setInterval(sendFrame, 500);
+    </script>
+</body>
+</html>
